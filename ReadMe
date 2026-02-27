@@ -10,3 +10,6 @@ Architecture:
        │                                           │
        └─────────── Signed by same CA ─────────────┘
                        ca.crt / ca.key
+
+To verfiy the setup KAFKA IO is used to verify if kafka is configured successfully.
+can be downloaded from https://kafkio.com/
