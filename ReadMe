@@ -1,1 +1,12 @@
-Readme
+This is a quick setup guide to create secure confluent kafka setup for Demo and personal use using Docker. 
+
+Architecture:
+
+┌─────────────┐    mTLS (port 9093)    ┌──────────────────────────┐
+│   Client    │◄──────────────────────►│   Kafka Broker           │
+│ client.crt  │   Both sides verify    │   broker.crt             │
+│ client.key  │   each other's cert    │   kafka.keystore.jks     │
+└─────────────┘                        └──────────────────────────┘
+       │                                           │
+       └─────────── Signed by same CA ─────────────┘
+                       ca.crt / ca.key
