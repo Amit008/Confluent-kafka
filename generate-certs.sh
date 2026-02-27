@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # generate-certs.sh — macOS mTLS Certificate Generator for Confluent Kafka
-# Tested on macOS 12+ (Monterey, Ventura, Sonoma)
 set -euo pipefail
 
 # ── Config ──────────────────────────────────────────────
