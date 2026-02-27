@@ -4,7 +4,7 @@ set -euo pipefail
 
 # ── Config ──────────────────────────────────────────────
 OPENSSL="$(brew --prefix openssl@3)/bin/openssl"
-CERTS_DIR="${1:-$HOME/kafka-mtls/certs}"
+CERTS_DIR="${1:-$HOME/Confluent-kafka/certs}"
 CA_PASS="kafka-ca-password"
 STORE_PASS="kafka-broker-password"
 CA_VALIDITY=3650
