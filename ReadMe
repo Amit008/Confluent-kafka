@@ -33,3 +33,11 @@ Confluent-kafka/
 │   └── client-ssl.properties   # CLI client configuration
 └── scripts/
     └── generate-certs.sh       # Certificate generation script
+
+1.How to start?
+Download the code https://github.com/Amit008/Confluent-kafka.git
+execute thecommand from directory: Confluent-kafka>docker compose up -d
+
+
+
+
