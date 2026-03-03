@@ -1,0 +1,13 @@
+kafka:
+  clusters:
+    - name: local
+      bootstrapServers: kafka:9094
+      properties:
+        security.protocol: SASL_SSL
+        sasl.mechanism: PLAIN
+        sasl.jaas.config: >
+          org.apache.kafka.common.security.plain.PlainLoginModule required
+          username="admin" password="admin-secret";
+        ssl.truststore.location: /certs/kafka.truststore.jks
+        ssl.truststore.password: kafka-broker-password
+        ssl.endpoint.identification.algorithm: ""
