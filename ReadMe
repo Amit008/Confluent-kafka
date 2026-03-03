@@ -30,7 +30,9 @@ Confluent-kafka/
 │   ├── keystore_creds          # Keystore password file
 │   └── truststore_creds        # Truststore password file
 ├── config/
-│   └── client-ssl.properties   # CLI client configuration
+│   └── kafka_server_jaas.conf 
+│   └── kafka-ui.yml            
+│   └── zookeeper_jaas.conf   
 └── scripts/
     └── generate-certs.sh       # Certificate generation script
 
