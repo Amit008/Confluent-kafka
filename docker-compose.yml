@@ -4,158 +4,94 @@
 # Ports:
 #   9093 - Kafka mTLS listener (external clients)
 #   9092 - Kafka PLAINTEXT listener (internal only, optional)
-#   2181 - ZooKeeper
+#   2182 - ZooKeeper
 #   8081 - Schema Registry (optional)
 # ============================================================
 
 services:
-
-  # ----------------------------------------------------------
-  # ZooKeeper
-  # ----------------------------------------------------------
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
-    container_name: zookeeper
+    platform: linux/amd64
     hostname: zookeeper
-    restart: unless-stopped
+    networks: [kafka-net]
+    volumes:
+      - ~/Confluent-kafka/config/zookeeper_jaas.conf:/etc/kafka/zookeeper_jaas.conf:ro
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-      ZOOKEEPER_SYNC_LIMIT: 2
-    ports:
-      - "2181:2181"
-    volumes:
-      - zookeeper-data:/var/lib/zookeeper/data
-      - zookeeper-logs:/var/lib/zookeeper/log
+      ZOOKEEPER_AUTH_PROVIDER_1: "" 
+      ZOOKEEPER_REQUIRE_CLIENT_AUTH_SCHEME: sasl 
+      KAFKA_OPTS: "-Djava.security.auth.login.config=/etc/kafka/zookeeper_jaas.conf"   
     healthcheck:
-      test: ["CMD", "bash", "-c", "echo ruok | nc localhost 2181 | grep imok"]
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/2181 && echo ruok >&3 && cat <&3 | grep imok"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 15
+      start_period: 30s
 
-  # ----------------------------------------------------------
-  # Kafka Broker with mTLS
-  # ----------------------------------------------------------
   kafka:
     image: confluentinc/cp-kafka:7.5.0
-    container_name: kafka-broker
+    platform: linux/amd64
     hostname: kafka
-    restart: unless-stopped
+    networks: [kafka-net]
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+      - "9094:9094"
     depends_on:
       zookeeper:
         condition: service_healthy
-    ports:
-      - "9092:9092"    # Internal PLAINTEXT (disable in production)
-      - "9093:9093"    # External mTLS listener
     volumes:
-      - kafka-data:/var/lib/kafka/data
-      - ./certs:/etc/kafka/secrets:ro   # Mount certificates as read-only
+      - ~/Confluent-kafka/certs:/etc/kafka/secrets:ro
+      - ~/Confluent-kafka/config/kafka_server_jaas.conf:/etc/kafka/kafka_server_jaas.conf:ro
+
     environment:
-      # ---- Broker Identity ----
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
 
-      # ---- Listeners ----
-      # PLAINTEXT  → internal Docker network only
-      # SSL        → mTLS for external clients on port 9093
-      KAFKA_LISTENERS: >-
-        PLAINTEXT://0.0.0.0:9092,
-        SSL://0.0.0.0:9093
+      KAFKA_LISTENERS:            PLAINTEXT://0.0.0.0:9092,SSL://0.0.0.0:9093,SASL_SSL://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,SSL://kafka:9093,SASL_SSL://kafka:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,SSL:SSL,SASL_SSL:SASL_SSL
+      KAFKA_INTER_BROKER_LISTENER_NAME: SASL_SSL
 
-      KAFKA_ADVERTISED_LISTENERS: >-
-        PLAINTEXT://kafka:9092,
-        SSL://localhost:9093
+      KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
+      KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
+      # Required by dub — points to JAAS file for Kafka listeners
+      KAFKA_OPTS: >-
+        -Djava.security.auth.login.config=/etc/kafka/kafka_server_jaas.conf
+   
+      KAFKA_SSL_KEYSTORE_FILENAME:        kafka.keystore.jks
+      KAFKA_SSL_KEYSTORE_CREDENTIALS:     keystore_creds
+      KAFKA_SSL_KEY_CREDENTIALS:          keystore_creds
+      KAFKA_SSL_TRUSTSTORE_FILENAME:      kafka.truststore.jks
+      KAFKA_SSL_TRUSTSTORE_CREDENTIALS:   truststore_creds
+      KAFKA_SSL_CLIENT_AUTH:              required
 
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: >-
-        PLAINTEXT:PLAINTEXT,
-        SSL:SSL
-
-      # Inter-broker uses PLAINTEXT inside Docker network
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-
-      # ---- SSL / mTLS Configuration ----
-      KAFKA_SSL_KEYSTORE_FILENAME: kafka.keystore.jks
-      KAFKA_SSL_KEYSTORE_CREDENTIALS: keystore_creds
-      KAFKA_SSL_KEY_CREDENTIALS: keystore_creds
-      KAFKA_SSL_TRUSTSTORE_FILENAME: kafka.truststore.jks
-      KAFKA_SSL_TRUSTSTORE_CREDENTIALS: truststore_creds
-
-      # REQUIRED = enforce mTLS (clients MUST present a certificate)
-      KAFKA_SSL_CLIENT_AUTH: required
-
-      # ---- Topic & Replication Defaults ----
-      KAFKA_NUM_PARTITIONS: 3
-      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_MIN_INSYNC_REPLICAS: 1
-
-      # ---- Performance Tuning ----
-      KAFKA_LOG_RETENTION_HOURS: 168        # 7 days
-      KAFKA_LOG_SEGMENT_BYTES: 1073741824   # 1 GB
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-
-      # ---- JVM ----
-      KAFKA_HEAP_OPTS: "-Xmx1G -Xms512M"
-
-      # ---- Logging ----
-      KAFKA_LOG4J_ROOT_LOGLEVEL: INFO
-      KAFKA_LOG4J_LOGGERS: >-
-        kafka.controller=INFO,
-        kafka.producer.async.DefaultEventHandler=INFO,
-        state.change.logger=INFO
-
     healthcheck:
-      test: >-
-        ["CMD", "kafka-broker-api-versions", "--bootstrap-server",
-         "localhost:9092"]
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 2>/dev/null | grep -q '0'"]
       interval: 15s
-      timeout: 10s
+      timeout: 15s
       retries: 10
-      start_period: 30s
+      start_period: 45s
 
-  # ----------------------------------------------------------
-  # Schema Registry (optional but recommended)
-  # ----------------------------------------------------------
-  schema-registry:
-    image: confluentinc/cp-schema-registry:7.5.0
-    container_name: schema-registry
-    hostname: schema-registry
-    restart: unless-stopped
-    depends_on:
-      kafka:
-        condition: service_healthy
-    ports:
-      - "8081:8081"
-    environment:
-      SCHEMA_REGISTRY_HOST_NAME: schema-registry
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
-      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
-      SCHEMA_REGISTRY_KAFKASTORE_SECURITY_PROTOCOL: PLAINTEXT
-
-  # ----------------------------------------------------------
-  # Kafka UI (optional - for monitoring)
-  # ----------------------------------------------------------
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
-    container_name: kafka-ui
-    restart: unless-stopped
+    platform: linux/amd64
+    hostname: kafka-ui
+    networks: [kafka-net]
+    ports:
+      - "8080:8080"
     depends_on:
       kafka:
         condition: service_healthy
-    ports:
-      - "8080:8080"
+    volumes:
+      - ~/Confluent-kafka/certs:/certs:ro
+      - ~/Confluent-kafka/config/kafka-ui.yml:/app/config.yml:ro
+      
     environment:
-      KAFKA_CLUSTERS_0_NAME: local-mtls-cluster
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
-      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
-
-volumes:
-  zookeeper-data:
-  zookeeper-logs:
-  kafka-data:
-
+      SPRING_CONFIG_ADDITIONAL_LOCATION: /app/config.yml
+      
 networks:
-  default:
-    name: kafka-mtls-network
+  kafka-net:
+    driver: bridge
