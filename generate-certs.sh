@@ -27,10 +27,21 @@ echo "[2/6] Generating Broker cert..."
 $OPENSSL genrsa -out broker.key $KEY_SIZE
 $OPENSSL req -new -key broker.key -out broker.csr \
   -subj "/CN=kafka-broker/O=MyOrg"
-cat > /tmp/broker-san.cnf <<EOF
+
+
+cat > /tmp/broker-san.cnf <<'EOF'
 [req_ext]
-subjectAltName=DNS:kafka,DNS:localhost,IP:127.0.0.1
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = kafka
+DNS.2 = kafka-broker
+DNS.3 = localhost
+DNS.4 = host.docker.internal
+IP.1  = 127.0.0.1
 EOF
+
+
 $OPENSSL x509 -req -in broker.csr -CA ca.crt \
   -CAkey ca.key -passin pass:$CA_PASS \
   -CAcreateserial -out broker.crt -days $CERT_VALIDITY \
