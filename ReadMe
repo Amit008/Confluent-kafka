@@ -1,4 +1,6 @@
 This is a quick setup guide to create secure confluent kafka setup for Demo and personal use using Docker. 
+This setup support both SSL and SASL based authentication with client via MTLS.
+
 
 Architecture:
 
