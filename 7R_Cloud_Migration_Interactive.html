@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>7R Cloud Migration Framework</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #030810;
+    --panel: #080f1e;
+    --border: #0d1e36;
+    --r1: #00D4FF; --r2: #00FF9F; --r3: #FFD700; --r4: #FF6B6B;
+    --r5: #B46EFF; --r6: #FF8C42; --r7: #9E9E9E;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg);
+    font-family: 'Rajdhani', sans-serif;
+    color: #e0e0e0;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content:'';
+    position:fixed; inset:0; z-index:0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.035) 1px, transparent 1px);
+    background-size: 48px 48px;
+    animation: gridScroll 20s linear infinite;
+  }
+  @keyframes gridScroll { to { background-position: 48px 48px; } }
+
+  /* Floating particles */
+  .particles { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+  .particle {
+    position:absolute;
+    width:2px; height:2px;
+    background: #00D4FF;
+    border-radius:50%;
+    opacity:0;
+    animation: float var(--dur) var(--delay) infinite ease-in-out;
+  }
+  @keyframes float {
+    0%,100%{opacity:0; transform:translateY(100vh) translateX(0);}
+    10%{opacity:0.6;}
+    90%{opacity:0.2;}
+    50%{transform:translateY(-10vh) translateX(var(--dx));}
+  }
+
+  .wrapper { position:relative; z-index:1; max-width:1400px; margin:0 auto; padding:32px 20px; }
+
+  /* ── HEADER ── */
+  .header { text-align:center; margin-bottom:48px; }
+  .header-badge {
+    display:inline-flex; align-items:center; gap:8px;
+    background:rgba(0,212,255,0.07);
+    border:1px solid rgba(0,212,255,0.25);
+    border-radius:2px; padding:6px 20px;
+    font-family:'Share Tech Mono', monospace;
+    font-size:11px; color:#00D4FF; letter-spacing:4px;
+    margin-bottom:20px;
+    animation: fadeDown 0.8s ease both;
+  }
+  .header-badge .dot {
+    width:6px; height:6px; border-radius:50%;
+    background:#00D4FF;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,212,255,0.5);} 50%{opacity:0.7;box-shadow:0 0 0 6px rgba(0,212,255,0);} }
+  h1 {
+    font-family:'Orbitron', monospace;
+    font-size: clamp(28px,5vw,58px);
+    font-weight:900; line-height:1;
+    color:#fff; letter-spacing:-1px;
+    animation: fadeDown 0.8s 0.1s ease both;
+    text-shadow: 0 0 40px rgba(0,212,255,0.3);
+  }
+  h1 span {
+    background: linear-gradient(90deg, #00D4FF, #00FF9F, #00D4FF);
+    background-size:200%;
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    animation: shimmer 4s infinite linear;
+  }
+  @keyframes shimmer { to { background-position:200% 0; } }
+  .subtitle {
+    font-family:'Share Tech Mono', monospace;
+    font-size:12px; color:#446;
+    letter-spacing:3px; margin-top:12px;
+    animation: fadeDown 0.8s 0.2s ease both;
+  }
+  .header-line {
+    height:1px;
+    background: linear-gradient(90deg, transparent, rgba(0,212,255,0.4), rgba(0,255,159,0.4), transparent);
+    margin-top:24px;
+    animation: expandLine 1.2s 0.4s ease both;
+    transform-origin:center;
+  }
+  @keyframes expandLine { from{transform:scaleX(0)} to{transform:scaleX(1)} }
+
+  /* ── FLOW BAR ── */
+  .flow-bar {
+    display:flex; align-items:center; justify-content:center;
+    gap:0; margin-bottom:36px;
+    animation: fadeUp 0.8s 0.5s ease both;
+  }
+  .flow-node {
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:4px; padding:10px 18px;
+    text-align:center; position:relative;
+  }
+  .flow-node .fn-label {
+    font-family:'Share Tech Mono', monospace;
+    font-size:10px; color:#556; letter-spacing:2px; margin-bottom:4px;
+  }
+  .flow-node .fn-title {
+    font-family:'Orbitron', monospace;
+    font-size:13px; font-weight:700; color:#fff;
+  }
+  .flow-node.on-prem { border-color:#FF8C4255; }
+  .flow-node.on-prem .fn-title { color:#FF8C42; }
+  .flow-node.cloud { border-color:#00D4FF55; }
+  .flow-node.cloud .fn-title { color:#00D4FF; }
+  .flow-arrow {
+    display:flex; align-items:center;
+    padding:0 8px; color:#1a3050; font-size:24px;
+    position:relative;
+  }
+  .flow-arrow svg { animation: arrowPulse 2s infinite; }
+  @keyframes arrowPulse { 0%,100%{opacity:0.3;} 50%{opacity:1;} }
+  .flow-strategy-pills {
+    display:flex; align-items:center; gap:6px;
+    background:rgba(0,212,255,0.04);
+    border:1px solid rgba(0,212,255,0.1);
+    border-radius:4px; padding:8px 16px;
+  }
+  .strategy-pill {
+    font-family:'Share Tech Mono', monospace;
+    font-size:9px; letter-spacing:1px;
+    padding:3px 8px; border-radius:2px;
+    border:1px solid; cursor:pointer;
+    transition:all 0.2s;
+  }
+  .strategy-pill:hover { filter:brightness(1.3); transform:translateY(-1px); }
+
+  /* ── TABS ── */
+  .tabs {
+    display:flex; gap:2px; margin-bottom:28px;
+    background:rgba(255,255,255,0.02);
+    border:1px solid var(--border); border-radius:4px; padding:4px;
+    animation: fadeUp 0.8s 0.6s ease both;
+  }
+  .tab {
+    flex:1; padding:10px;
+    background:transparent; border:1px solid transparent;
+    border-radius:3px; color:#446;
+    font-family:'Share Tech Mono', monospace;
+    font-size:10px; letter-spacing:3px; text-transform:uppercase;
+    cursor:pointer; transition:all 0.2s;
+  }
+  .tab.active {
+    background:rgba(0,212,255,0.1);
+    border-color:rgba(0,212,255,0.3); color:#00D4FF;
+  }
+  .tab:hover:not(.active) { color:#888; border-color:#1a2d45; }
+
+  /* ── CARDS GRID ── */
+  .cards-grid {
+    display:grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap:12px;
+    margin-bottom:24px;
+  }
+  @media(max-width:1200px){.cards-grid{grid-template-columns:repeat(4,1fr);}}
+  @media(max-width:700px){.cards-grid{grid-template-columns:repeat(2,1fr);}}
+
+  .card {
+    background: var(--panel);
+    border:1px solid var(--border);
+    border-radius:8px; padding:0;
+    cursor:pointer;
+    transition: transform 0.3s cubic-bezier(.34,1.56,.64,1), box-shadow 0.3s, border-color 0.3s;
+    position:relative; overflow:hidden;
+    animation: cardIn 0.6s var(--delay) ease both;
+  }
+  @keyframes cardIn {
+    from { opacity:0; transform:translateY(30px) scale(0.95); }
+    to   { opacity:1; transform:translateY(0) scale(1); }
+  }
+  .card:hover { transform:translateY(-6px) scale(1.02); }
+  .card.active {
+    transform:translateY(-8px) scale(1.04);
+    z-index:10;
+  }
+
+  /* Card top band */
+  .card-band {
+    height:5px; width:100%;
+    border-radius:8px 8px 0 0;
+  }
+
+  /* Card shimmer on hover */
+  .card::after {
+    content:''; position:absolute; inset:0;
+    background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.04) 50%, transparent 60%);
+    transform:translateX(-100%);
+    transition: transform 0.6s;
+    pointer-events:none;
+  }
+  .card:hover::after { transform:translateX(100%); }
+
+  .card-inner { padding:16px 12px; }
+
+  /* Glowing number badge */
+  .card-num {
+    position:absolute; top:12px; right:10px;
+    width:24px; height:24px; border-radius:50%;
+    border:1px solid; display:flex; align-items:center; justify-content:center;
+    font-family:'Share Tech Mono', monospace; font-size:9px; font-weight:700;
+  }
+
+  /* Icon container */
+  .card-icon-wrap {
+    width:52px; height:52px;
+    border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    margin-bottom:12px; position:relative;
+    transition: transform 0.3s;
+    border:1px solid;
+  }
+  .card:hover .card-icon-wrap { transform:rotate(5deg) scale(1.1); }
+  .card-icon-wrap svg { width:26px; height:26px; }
+
+  .card-name {
+    font-family:'Orbitron', monospace;
+    font-size:12px; font-weight:700; color:#fff;
+    margin-bottom:2px; line-height:1.2;
+  }
+  .card-alias {
+    font-family:'Share Tech Mono', monospace;
+    font-size:9px; letter-spacing:1px;
+    margin-bottom:10px;
+  }
+  .card-desc {
+    font-size:11px; color:#778; line-height:1.6;
+    margin-bottom:12px;
+  }
+
+  /* Effort/benefit bars */
+  .bars { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+  .bar-group label {
+    font-family:'Share Tech Mono', monospace;
+    font-size:8px; color:#445; letter-spacing:2px; display:block; margin-bottom:4px;
+  }
+  .bar-track { display:flex; gap:3px; }
+  .bar-seg {
+    flex:1; height:5px; border-radius:2px;
+    transition: background 0.4s;
+  }
+
+  /* Best practices (hidden until expanded) */
+  .card-practices {
+    max-height:0; overflow:hidden;
+    transition:max-height 0.4s ease, opacity 0.4s;
+    opacity:0;
+  }
+  .card.active .card-practices { max-height:300px; opacity:1; }
+  .practice-item {
+    display:flex; gap:7px; align-items:flex-start;
+    margin-bottom:6px;
+  }
+  .practice-dot { width:4px; height:4px; border-radius:50%; margin-top:5px; flex-shrink:0; }
+  .practice-text { font-size:10.5px; color:#aaa; line-height:1.5; }
+
+  .card-when {
+    margin-top:10px; padding:6px 10px;
+    background:rgba(255,255,255,0.03);
+    border-radius:3px; border:1px solid rgba(255,255,255,0.05);
+    font-family:'Share Tech Mono', monospace;
+    font-size:9px; color:#556; line-height:1.5;
+  }
+  .card-when span { display:block; margin-bottom:2px; }
+
+  /* ── DETAIL PANEL ── */
+  .detail-panel {
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:8px; padding:28px;
+    margin-bottom:24px;
+    display:none;
+    animation: panelIn 0.3s ease;
+  }
+  @keyframes panelIn { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
+  .detail-panel.visible { display:block; }
+  .detail-header { display:flex; align-items:flex-start; gap:20px; margin-bottom:24px; }
+  .detail-icon-big {
+    width:72px; height:72px; border-radius:14px;
+    display:flex; align-items:center; justify-content:center;
+    border:1px solid; flex-shrink:0;
+  }
+  .detail-icon-big svg { width:38px; height:38px; }
+  .detail-title-block .detail-num {
+    font-family:'Share Tech Mono', monospace; font-size:11px; letter-spacing:3px; margin-bottom:4px;
+  }
+  .detail-title-block h2 {
+    font-family:'Orbitron', monospace; font-size:28px; font-weight:900; color:#fff; line-height:1;
+  }
+  .detail-title-block .detail-alias {
+    font-family:'Share Tech Mono', monospace; font-size:12px; letter-spacing:2px; margin-top:6px;
+  }
+  .detail-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+  @media(max-width:800px){.detail-grid{grid-template-columns:1fr;}}
+  .detail-section h3 {
+    font-family:'Share Tech Mono', monospace; font-size:9px; letter-spacing:3px; color:#445;
+    margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid #0d1e36;
+  }
+  .detail-desc { font-size:13px; color:#aaa; line-height:1.7; }
+  .hp-item {
+    display:flex; gap:8px; align-items:flex-start; margin-bottom:8px;
+  }
+  .hp-num {
+    width:18px; height:18px; border-radius:3px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Share Tech Mono', monospace; font-size:9px; flex-shrink:0;
+  }
+  .hp-text { font-size:12px; color:#bbb; line-height:1.5; }
+  .tool-chip {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:5px 10px; border-radius:3px; border:1px solid;
+    font-family:'Share Tech Mono', monospace; font-size:10px;
+    margin:0 4px 6px 0; letter-spacing:1px;
+  }
+  .tool-chip-dot { width:5px; height:5px; border-radius:50%; }
+
+  /* ── DECISION FLOW ── */
+  .decision-flow { margin-bottom:24px; }
+  .flow-title {
+    font-family:'Share Tech Mono', monospace; font-size:10px; color:#334;
+    letter-spacing:4px; text-align:center; margin-bottom:20px;
+  }
+  .flow-steps {
+    display:flex; align-items:center; justify-content:center;
+    flex-wrap:wrap; gap:0;
+    padding:20px;
+    background:var(--panel); border:1px solid var(--border); border-radius:8px;
+  }
+  .flow-step {
+    background:#0a1628; border:1px solid #1a3050;
+    border-radius:6px; padding:12px 14px; min-width:115px;
+    text-align:center; position:relative;
+    transition:all 0.3s; cursor:pointer;
+  }
+  .flow-step:hover { border-color:#00D4FF55; background:#0d1e36; transform:translateY(-2px); }
+  .flow-step-q { font-size:12px; color:#ccc; margin-bottom:6px; line-height:1.4; font-weight:600; }
+  .flow-step-no { font-family:'Share Tech Mono', monospace; font-size:9px; color:#FF6B6B; }
+  .flow-step-yes { font-family:'Share Tech Mono', monospace; font-size:9px; color:#00FF9F; }
+  .flow-conn {
+    display:flex; align-items:center; padding:0 6px; color:#1a3050;
+  }
+  .flow-conn svg { animation: arrowPulse 2s infinite; }
+
+  /* ── HYPERSCALERS ── */
+  .hs-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
+  @media(max-width:700px){.hs-grid{grid-template-columns:1fr;}}
+  .hs-card {
+    background:var(--panel); border-radius:8px; padding:24px;
+    border:1px solid var(--border); transition:all 0.3s;
+  }
+  .hs-card:hover { transform:translateY(-4px); }
+  .hs-card.aws { border-color:#FF990033; box-shadow:0 0 30px #FF990011; }
+  .hs-card.azure { border-color:#0089D633; box-shadow:0 0 30px #0089D611; }
+  .hs-card.gcp { border-color:#34A85333; box-shadow:0 0 30px #34A85311; }
+  .hs-name {
+    font-family:'Orbitron', monospace; font-size:20px; font-weight:700;
+    margin-bottom:16px; display:flex; align-items:center; gap:10px;
+  }
+  .hs-dot { width:10px; height:10px; border-radius:50%; }
+  .hs-tool {
+    display:flex; align-items:center; gap:10px;
+    padding:8px 12px; border-radius:4px;
+    margin-bottom:6px; border:1px solid;
+    font-size:12px; transition:all 0.2s; cursor:default;
+  }
+  .hs-tool:hover { transform:translateX(4px); }
+  .hs-tool-icon { width:20px; height:20px; flex-shrink:0; }
+
+  /* ── BEST PRACTICES ── */
+  .bp-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  @media(max-width:900px){.bp-grid{grid-template-columns:repeat(2,1fr);}}
+  .bp-card {
+    background:var(--panel); border:1px solid var(--border);
+    border-radius:6px; padding:16px;
+    transition:all 0.3s; cursor:default;
+  }
+  .bp-card:hover { transform:translateY(-3px); border-color:#00D4FF22; background:#0a1628; }
+  .bp-icon { margin-bottom:10px; }
+  .bp-title {
+    font-family:'Orbitron', monospace; font-size:11px; font-weight:700;
+    color:#00D4FF; margin-bottom:6px;
+  }
+  .bp-desc { font-size:11px; color:#778; line-height:1.6; }
+
+  /* ── MATRIX TABLE ── */
+  .matrix-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .matrix-table th {
+    padding:10px 14px; text-align:left;
+    font-family:'Share Tech Mono', monospace; font-size:9px;
+    letter-spacing:3px; color:#445;
+    border-bottom:1px solid var(--border);
+  }
+  .matrix-table td { padding:12px 14px; border-bottom:1px solid #0a1424; vertical-align:middle; }
+  .matrix-table tr:hover td { background:rgba(255,255,255,0.015); }
+  .matrix-name { font-weight:700; font-size:13px; }
+  .matrix-alias { font-family:'Share Tech Mono', monospace; font-size:9px; color:#445; margin-top:2px; }
+  .seg-row { display:flex; gap:3px; }
+  .seg-sm { width:10px; height:10px; border-radius:2px; }
+  .badge {
+    display:inline-block; padding:3px 8px; border-radius:2px;
+    font-family:'Share Tech Mono', monospace; font-size:9px; letter-spacing:1px;
+    border:1px solid;
+  }
+
+  /* Animations */
+  @keyframes fadeDown { from{opacity:0;transform:translateY(-16px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeUp   { from{opacity:0;transform:translateY(16px)}  to{opacity:1;transform:translateY(0)} }
+
+  /* Footer */
+  .footer {
+    text-align:center; margin-top:40px; padding-top:20px;
+    border-top:1px solid var(--border);
+    font-family:'Share Tech Mono', monospace; font-size:10px; color:#223;
+    letter-spacing:3px;
+  }
+
+  /* Tab panels */
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  .section-label {
+    font-family:'Share Tech Mono', monospace; font-size:9px;
+    letter-spacing:4px; color:#334; text-align:center;
+    margin-bottom:16px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Particles -->
+<div class="particles" id="particles"></div>
+
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-badge">
+      <div class="dot"></div>
+      CLOUD MIGRATION STRATEGY FRAMEWORK — GARTNER 7R MODEL
+      <div class="dot"></div>
+    </div>
+    <h1>THE 7 R's OF<br><span>CLOUD MIGRATION</span></h1>
+    <p class="subtitle">ON-PREMISES &nbsp;→&nbsp; HYPERSCALER &nbsp;//&nbsp; AWS · AZURE · GCP</p>
+    <div class="header-line"></div>
+  </div>
+
+  <!-- FLOW BAR -->
+  <div class="flow-bar">
+    <div class="flow-node on-prem">
+      <div class="fn-label">SOURCE</div>
+      <div class="fn-title">ON-PREMISES</div>
+    </div>
+    <div class="flow-arrow">
+      <svg width="40" height="14" viewBox="0 0 40 14">
+        <line x1="0" y1="7" x2="30" y2="7" stroke="#1a3050" stroke-width="1.5"/>
+        <polygon points="30,3 40,7 30,11" fill="#1a3050"/>
+      </svg>
+    </div>
+    <div class="flow-strategy-pills" id="pillContainer"></div>
+    <div class="flow-arrow">
+      <svg width="40" height="14" viewBox="0 0 40 14">
+        <line x1="0" y1="7" x2="30" y2="7" stroke="#1a3050" stroke-width="1.5"/>
+        <polygon points="30,3 40,7 30,11" fill="#1a3050"/>
+      </svg>
+    </div>
+    <div class="flow-node cloud">
+      <div class="fn-label">TARGET</div>
+      <div class="fn-title">HYPERSCALER</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('overview',this)">Overview</button>
+    <button class="tab" onclick="switchTab('matrix',this)">Compare Matrix</button>
+    <button class="tab" onclick="switchTab('flow',this)">Decision Flow</button>
+    <button class="tab" onclick="switchTab('hyperscalers',this)">Hyperscalers</button>
+    <button class="tab" onclick="switchTab('bestpractices',this)">Best Practices</button>
+  </div>
+
+  <!-- ── OVERVIEW TAB ── -->
+  <div class="tab-panel active" id="tab-overview">
+    <div class="cards-grid" id="cardsGrid"></div>
+    <div class="detail-panel" id="detailPanel"></div>
+  </div>
+
+  <!-- ── MATRIX TAB ── -->
+  <div class="tab-panel" id="tab-matrix">
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+      <table class="matrix-table" id="matrixTable"></table>
+    </div>
+  </div>
+
+  <!-- ── FLOW TAB ── -->
+  <div class="tab-panel" id="tab-flow">
+    <p class="flow-title">MIGRATION STRATEGY DECISION FLOW</p>
+    <div class="flow-steps" id="flowSteps"></div>
+  </div>
+
+  <!-- ── HYPERSCALERS TAB ── -->
+  <div class="tab-panel" id="tab-hyperscalers">
+    <div class="hs-grid" id="hsGrid"></div>
+  </div>
+
+  <!-- ── BEST PRACTICES TAB ── -->
+  <div class="tab-panel" id="tab-bestpractices">
+    <p class="section-label">UNIVERSAL BEST PRACTICES // ALL HYPERSCALERS</p>
+    <div class="bp-grid" id="bpGrid"></div>
+  </div>
+
+  <div class="footer">7R FRAMEWORK &nbsp;·&nbsp; GARTNER METHODOLOGY &nbsp;·&nbsp; AWS · AZURE · GCP &nbsp;·&nbsp; CLICK CARDS TO EXPLORE</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════
+const RS = [
+  {
+    num:'R1', name:'REHOST', alias:'Lift & Shift', color:'#00D4FF',
+    icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="17 11 12 6 7 11"/><line x1="12" y1="6" x2="12" y2="18"/>
+      <rect x="3" y="18" width="18" height="3" rx="1"/>
+    </svg>`,
+    desc:'Move workloads to cloud infrastructure exactly as-is with no code changes. The fastest migration path.',
+    longDesc:'Rehosting is ideal for quick wins—moving virtual machines, databases, and apps directly to cloud IaaS with minimal risk and near-zero code changes. Best for large portfolios where speed to cloud matters most.',
+    practices:['AWS Server Migration Service (SMS)','Azure Migrate + Site Recovery','GCP Migrate for Compute Engine','CloudEndure / Velostrata automation','Automate with IaC post-migration'],
+    tools:['AWS SMS','Azure Migrate','CloudEndure','Velostrata'],
+    effort:1, benefit:2, speed:'Fast', cloudNative:'Low',
+    when:'Time-critical migrations, large VM portfolios, legacy apps',
+  },
+  {
+    num:'R2', name:'REPLATFORM', alias:'Lift, Tinker & Shift', color:'#00FF9F',
+    icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/>
+    </svg>`,
+    desc:'Minor optimizations during migration to leverage cloud benefits without changing core architecture.',
+    longDesc:'A pragmatic middle ground—migrate the app but swap out components like databases or app servers for managed cloud equivalents. You get meaningful cloud benefits without a full re-architecture.',
+    practices:['Move to managed DB: RDS, Cloud SQL, Azure SQL','Containerize with Docker/Kubernetes','Switch to PaaS app servers (Elastic Beanstalk)','Optimize OS and runtime versions','Use auto-scaling groups'],
+    tools:['Amazon RDS','Azure SQL','Cloud SQL','Elastic Beanstalk','App Service'],
+    effort:2, benefit:3, speed:'Medium', cloudNative:'Medium',
+    when:'Apps needing cloud benefits without full refactor, moderate complexity',
+  },
+  {
+    num:'R3', name:'REPURCHASE', alias:'Drop & Shop', color:'#FFD700',
+    icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+    </svg>`,
+    desc:'Replace existing application with a cloud-native SaaS solution that meets the same business need.',
+    longDesc:'When your on-prem software has a mature SaaS equivalent, buying is better than migrating. Drop the old system and shop for a purpose-built cloud product—eliminating infrastructure management entirely.',
+    practices:['Evaluate SaaS: Salesforce, ServiceNow, Workday','Plan and execute data migration strategy','Map user workflows and train teams','Negotiate SLAs, compliance, and data residency','Integrate via APIs with existing systems'],
+    tools:['Salesforce','ServiceNow','Workday','SAP S/4HANA Cloud','Microsoft 365'],
+    effort:2, benefit:4, speed:'Medium', cloudNative:'High',
+    when:'CRM, ERP, HRMS, ITSM, COTS commercial off-the-shelf apps',
+  },
+  {
+    num:'R4', name:'REFACTOR', alias:'Re-Architect', color:'#FF6B6B',
+    icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+      <line x1="19" y1="12" x2="5" y2="12" stroke-dasharray="2 2"/>
+    </svg>`,
+    desc:'Redesign the application as cloud-native using microservices, serverless architecture, or containers.',
+    longDesc:'The most transformative path—tear down the monolith and rebuild as modern cloud-native. This delivers maximum agility, elasticity, and developer velocity, but requires the most investment and expertise.',
+    practices:['Adopt microservices with domain-driven design','Use Kubernetes: EKS, AKS, GKE','Implement serverless: Lambda, Functions, Cloud Run','Build CI/CD with GitHub Actions / CodePipeline','Apply 12-factor app principles throughout'],
+    tools:['AWS Lambda','Azure Functions','Google Cloud Run','EKS / AKS / GKE','Terraform / CDK'],
+    effort:5, benefit:5, speed:'Slow', cloudNative:'Highest',
+    when:'High-value apps needing scalability, high-traffic, competitive differentiation',
+  },
+  {
+    num:'R5', name:'RELOCATE', alias:'Hypervisor Lift', color:'#B46EFF',
+    icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/>
+      <line x1="12" y1="17" x2="12" y2="21"/>
+      <path d="M7 9l3 3 5-5" stroke-width="2"/>
+    </svg>`,
+    desc:'Move VMs directly to cloud hypervisor with zero application or OS changes required.',
+    longDesc:'The VMware-specific fast lane—move entire virtualized infrastructure to VMware Cloud on AWS/Azure/GCP. You keep every tool, every process, every VM config exactly as-is while gaining cloud economics.',
+    practices:['VMware Cloud on AWS (VMC)','Azure VMware Solution (AVS)','Google Cloud VMware Engine (GCVE)','Zero application or OS changes required','Leverage existing VMware admin skills'],
+    tools:['VMware Cloud on AWS','Azure VMware Solution','GC VMware Engine','vMotion','HCX'],
+    effort:1, benefit:2, speed:'Fast', cloudNative:'Low',
+    when:'VMware-heavy datacenters, organizations with large vSphere investments',
+  },
+  {
+    num:'R6', name:'RETAIN', alias:'Keep On-Prem', color:'#FF8C42',
+    icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>`,
+    desc:'Intentionally keep application on-premises due to compliance, latency, or cost considerations.',
+    longDesc:`Not everything should move to the cloud—yet. Identify apps blocked by regulation, custom hardware dependencies, or unfavorable cloud economics, and explicitly retain them on-prem with a future migration plan.`,
+    practices:['Document regulatory and compliance blockers','Evaluate hybrid cloud connectivity options','Apply cloud management tooling on-prem','Plan phased future migration roadmap','Connect via VPN / Direct Connect / ExpressRoute'],
+    tools:['AWS Outposts','Azure Arc','Google Anthos','Direct Connect','ExpressRoute'],
+    effort:1, benefit:1, speed:'N/A', cloudNative:'None',
+    when:'Regulated industries, recently upgraded hardware, low ROI migration',
+  },
+  {
+    num:'R7', name:'RETIRE', alias:'Decommission', color:'#9E9E9E',
+    icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+      <path d="M10 11v6M14 11v6"/>
+      <path d="M9 6V4h6v2"/>
+    </svg>`,
+    desc:'Decommission applications that are redundant, unused, or superseded by other systems.',
+    longDesc:'A migration project is a great opportunity to audit your portfolio. Typically 10–20% of apps can simply be turned off. Retiring them frees budget, simplifies the remaining migration, and reduces attack surface.',
+    practices:['Audit usage with analytics and user surveys','Identify redundant or duplicate workloads','Archive all data per retention policy before shutdown','Reallocate licenses, budget, and compute resources','Update CMDB and documentation after decommission'],
+    tools:['AWS Migration Hub','Azure Migrate','Cloud Asset Inventory','ServiceNow CMDB','Flexera'],
+    effort:1, benefit:3, speed:'Fast', cloudNative:'N/A',
+    when:'Low-usage apps, duplicates, systems superseded by cloud-native alternatives',
+  },
+];
+
+const HYPERSCALERS = [
+  {
+    id:'aws', name:'AWS', color:'#FF9900', cls:'aws',
+    logo:`<svg viewBox="0 0 24 24" fill="#FF9900" width="28" height="28"><path d="M6.763 10.036c0 .296.032.535.088.71.064.176.144.368.256.576.04.072.056.144.056.208 0 .096-.056.192-.176.288l-.576.384a.456.456 0 01-.24.08c-.096 0-.192-.048-.288-.136a2.96 2.96 0 01-.344-.448 7.44 7.44 0 01-.296-.56c-.744.88-1.68 1.32-2.8 1.32-.8 0-1.44-.228-1.912-.684-.472-.456-.712-1.064-.712-1.824 0-.808.284-1.464.856-1.96.572-.496 1.332-.744 2.296-.744.32 0 .648.028.992.08.344.052.7.136 1.072.232V7.04c0-.72-.152-1.224-.448-1.52-.304-.296-.816-.44-1.544-.44-.332 0-.672.04-1.024.128a7.56 7.56 0 00-1.024.336 2.72 2.72 0 01-.336.128.576.576 0 01-.144.024c-.128 0-.192-.096-.192-.296V4.96c0-.152.02-.268.064-.344.048-.072.136-.144.272-.216.332-.172.732-.316 1.196-.432A5.84 5.84 0 014.56 3.8c1.112 0 1.924.252 2.44.756.508.504.768 1.272.768 2.304v3.176zm-3.864 1.448c.308 0 .624-.056.96-.168.336-.112.636-.32.888-.608.152-.18.264-.376.32-.6.056-.22.088-.488.088-.8V9.04a7.8 7.8 0 00-.864-.16 7.028 7.028 0 00-.88-.056c-.628 0-1.088.124-1.392.38-.304.252-.452.608-.452 1.076 0 .44.112.768.344.992.228.228.548.34.988.212zM13 12.22c-.168 0-.28-.028-.352-.088-.072-.056-.136-.184-.192-.36L10.6 5.48a1.7 1.7 0 01-.088-.368c0-.144.072-.224.216-.224h.88c.176 0 .296.028.36.088.072.056.128.184.184.36l1.32 5.208 1.228-5.208c.048-.18.104-.304.176-.36.072-.056.2-.088.368-.088h.72c.176 0 .296.028.368.088.072.056.136.184.176.36l1.244 5.272 1.36-5.272c.056-.18.12-.304.184-.36.072-.056.192-.088.36-.088h.836c.144 0 .216.072.216.224 0 .044-.008.092-.02.144a1.528 1.528 0 01-.068.232l-1.896 6.292c-.056.18-.12.304-.192.36-.072.056-.184.088-.352.088h-.772c-.176 0-.296-.028-.368-.088-.072-.06-.136-.184-.176-.368L15.004 6.9l-1.216 5.256c-.048.184-.104.308-.176.368-.072.06-.2.088-.368.088H13zm10.12.336c-.472 0-.944-.056-1.4-.168-.456-.112-.812-.232-1.048-.368-.144-.08-.244-.168-.28-.248a.624.624 0 01-.056-.248v-.344c0-.2.072-.296.208-.296.056 0 .112.008.168.024.056.016.14.056.232.096.316.14.66.248 1.024.32.372.072.736.108 1.104.108.588 0 1.044-.104 1.36-.312.316-.208.48-.508.48-.896 0-.264-.08-.484-.24-.664-.16-.18-.464-.344-.904-.496l-1.296-.4c-.656-.208-1.14-.512-1.44-.912-.3-.4-.452-.84-.452-1.312 0-.38.08-.712.24-1 .16-.288.376-.54.652-.748.276-.208.588-.364.948-.472.36-.108.74-.16 1.144-.16.2 0 .408.012.608.04.208.024.396.06.584.108.18.044.352.096.512.152.16.056.288.112.38.168.128.072.22.148.272.228.052.076.076.176.076.296v.32c0 .2-.072.304-.208.304a.936.936 0 01-.344-.112 4.14 4.14 0 00-1.748-.36c-.532 0-.948.088-1.24.268-.292.18-.44.456-.44.844 0 .264.088.488.264.672.176.184.504.368.976.528l1.268.4c.648.204 1.116.492 1.4.864.284.372.424.8.424 1.28 0 .388-.076.74-.228 1.044-.156.308-.372.576-.648.8a2.8 2.8 0 01-.992.512 4.2 4.2 0 01-1.268.184z"/></svg>`,
+    tools:[
+      {name:'AWS Migration Hub',desc:'Central dashboard to track migrations'},
+      {name:'AWS DMS',desc:'Database Migration Service'},
+      {name:'AWS SMS',desc:'Server Migration Service'},
+      {name:'CloudEndure',desc:'Continuous replication & cutover'},
+      {name:'AWS Application Discovery',desc:'Discover on-prem dependencies'},
+    ]
+  },
+  {
+    id:'azure', name:'Azure', color:'#0089D6', cls:'azure',
+    logo:`<svg viewBox="0 0 24 24" fill="#0089D6" width="28" height="28"><path d="M13.05 4.24L6.56 18.05 2 18l4.09-6.81 6.96-6.95zm.7 1.12l3.56 10.89L8 19.76l8.4-1.39-2.65-12.96v-.05z"/></svg>`,
+    tools:[
+      {name:'Azure Migrate',desc:'Unified migration platform'},
+      {name:'Azure Site Recovery',desc:'DR & VM replication'},
+      {name:'Azure Database Migration',desc:'Migrate on-prem DBs to Azure'},
+      {name:'Movere',desc:'Cloud economics & discovery'},
+      {name:'Azure Arc',desc:'Manage on-prem with Azure'},
+    ]
+  },
+  {
+    id:'gcp', name:'GCP', color:'#34A853', cls:'gcp',
+    logo:`<svg viewBox="0 0 24 24" width="28" height="28"><path d="M12 6.5l3.5 2v4l-3.5 2-3.5-2v-4L12 6.5z" fill="#4285F4"/><path d="M12 0L2.4 5.5v11L12 22l9.6-5.5v-11L12 0zM20 15.5l-8 4.6-8-4.6v-9.2l8-4.6 8 4.6v9.2z" fill="#34A853"/></svg>`,
+    tools:[
+      {name:'Migrate for Compute',desc:'VM migration to GCP'},
+      {name:'Database Migration Svc',desc:'Migrate MySQL, PostgreSQL'},
+      {name:'Transfer Appliance',desc:'Physical data transfer device'},
+      {name:'Velostrata',desc:'Wave-based cloud migration'},
+      {name:'Google Anthos',desc:'Hybrid & multi-cloud management'},
+    ]
+  },
+];
+
+const BEST_PRACTICES = [
+  {
+    icon:`<svg viewBox="0 0 24 24" fill="none" stroke="#00D4FF" stroke-width="1.8" width="28" height="28"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>`,
+    title:'ASSESS FIRST', desc:'Run discovery tools to map all dependencies, performance baselines, and calculate TCO before migrating a single workload.'
+  },
+  {
+    icon:`<svg viewBox="0 0 24 24" fill="none" stroke="#FF6B6B" stroke-width="1.8" width="28" height="28"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+    title:'SECURITY BY DESIGN', desc:'Implement IAM, encryption at rest and in transit, VPC architecture, and zero-trust network access from day one—not as an afterthought.'
+  },
+  {
+    icon:`<svg viewBox="0 0 24 24" fill="none" stroke="#FFD700" stroke-width="1.8" width="28" height="28"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>`,
+    title:'TAG EVERYTHING', desc:'Apply a consistent tagging strategy for cost allocation, environment, owner, and workload. Tags enable governance, automation, and accurate FinOps reporting.'
+  },
+  {
+    icon:`<svg viewBox="0 0 24 24" fill="none" stroke="#00FF9F" stroke-width="1.8" width="28" height="28"><path d="M3 6h18M3 12h18M3 18h18" stroke-dasharray="2 4"/><circle cx="7" cy="6" r="2" fill="#00FF9F" stroke="none"/><circle cx="12" cy="12" r="2" fill="#00FF9F" stroke="none"/><circle cx="17" cy="18" r="2" fill="#00FF9F" stroke="none"/></svg>`,
+    title:'WAVE PLANNING', desc:'Group workloads into migration waves ordered by complexity, business criticality, and dependency chains. Start simple—build confidence before tackling core systems.'
+  },
+  {
+    icon:`<svg viewBox="0 0 24 24" fill="none" stroke="#B46EFF" stroke-width="1.8" width="28" height="28"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+    title:'LANDING ZONE', desc:'Establish your cloud foundation—account structure, networking, identity federation, centralized logging, and guardrails—before any workload migration begins.'
+  },
+  {
+    icon:`<svg viewBox="0 0 24 24" fill="none" stroke="#00D4FF" stroke-width="1.8" width="28" height="28"><polyline points="20 6 9 17 4 12"/></svg>`,
+    title:'TEST & VALIDATE', desc:'Thoroughly test migrated workloads before cutover. Use blue/green deployments or canary releases to reduce risk and validate performance at scale.'
+  },
+  {
+    icon:`<svg viewBox="0 0 24 24" fill="none" stroke="#FFD700" stroke-width="1.8" width="28" height="28"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
+    title:'FINOPS PRACTICE', desc:'Enable cost visibility from day one. Set budgets and alerts, rightsize compute resources, and leverage reserved or spot instances to optimize cloud spend.'
+  },
+  {
+    icon:`<svg viewBox="0 0 24 24" fill="none" stroke="#FF8C42" stroke-width="1.8" width="28" height="28"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/><line x1="2" y1="12" x2="22" y2="12" stroke-dasharray="3 3"/></svg>`,
+    title:'AUTOMATE MIGRATION', desc:'Use Infrastructure-as-Code (Terraform, CDK, Bicep) and automated pipelines for repeatable, auditable, and consistent cloud deployments at scale.'
+  },
+];
+
+const DECISION_FLOW = [
+  {q:'Still needed?', no:'→ RETIRE', yes:null},
+  {q:'Replace with SaaS?', no:null, yes:'→ REPURCHASE'},
+  {q:'VMware shop?', no:null, yes:'→ RELOCATE'},
+  {q:'Move as-is?', no:null, yes:'→ REHOST'},
+  {q:'Minor tweaks?', no:null, yes:'→ REPLATFORM'},
+  {q:'Full redesign?', no:null, yes:'→ REFACTOR'},
+  {q:'Compliance block?', no:null, yes:'→ RETAIN'},
+];
+
+// ═══════════════════════════════════════════════
+// RENDER PARTICLES
+// ═══════════════════════════════════════════════
+const pContainer = document.getElementById('particles');
+for(let i=0;i<30;i++){
+  const p = document.createElement('div');
+  p.className='particle';
+  p.style.cssText=`
+    left:${Math.random()*100}%;
+    --dur:${6+Math.random()*12}s;
+    --delay:${Math.random()*8}s;
+    --dx:${(Math.random()-0.5)*200}px;
+    background:${['#00D4FF','#00FF9F','#B46EFF'][Math.floor(Math.random()*3)]};
+  `;
+  pContainer.appendChild(p);
+}
+
+// ═══════════════════════════════════════════════
+// RENDER PILLS
+// ═══════════════════════════════════════════════
+const pillContainer = document.getElementById('pillContainer');
+RS.forEach(r=>{
+  const p = document.createElement('span');
+  p.className='strategy-pill';
+  p.textContent=r.name;
+  p.style.cssText=`color:${r.color};border-color:${r.color}44;background:${r.color}0f;`;
+  p.title=r.alias;
+  pillContainer.appendChild(p);
+});
+
+// ═══════════════════════════════════════════════
+// RENDER CARDS
+// ═══════════════════════════════════════════════
+let activeCard = null;
+const cardsGrid = document.getElementById('cardsGrid');
+const detailPanel = document.getElementById('detailPanel');
+
+RS.forEach((r,i)=>{
+  const card = document.createElement('div');
+  card.className='card';
+  card.id=`card-${r.num}`;
+  card.style.cssText=`--delay:${0.05*i}s; --color:${r.color};`;
+
+  const bgAlpha = 'rgba('+hexToRgb(r.color)+',0.08)';
+  const borderActive = r.color;
+
+  card.innerHTML=`
+    <div class="card-band" style="background:${r.color}"></div>
+    <div class="card-inner">
+      <div class="card-num" style="color:${r.color};border-color:${r.color}55;">${r.num}</div>
+      <div class="card-icon-wrap" style="background:${r.color}12;border-color:${r.color}33;color:${r.color};">
+        ${r.icon}
+      </div>
+      <div class="card-name">${r.name}</div>
+      <div class="card-alias" style="color:${r.color};">${r.alias}</div>
+      <div class="card-desc">${r.desc}</div>
+      <div class="bars">
+        <div class="bar-group">
+          <label>EFFORT</label>
+          <div class="bar-track">
+            ${[1,2,3,4,5].map(s=>`<div class="bar-seg" style="background:${s<=r.effort?r.color:'#0d1e36'}"></div>`).join('')}
+          </div>
+        </div>
+        <div class="bar-group">
+          <label>BENEFIT</label>
+          <div class="bar-track">
+            ${[1,2,3,4,5].map(s=>`<div class="bar-seg" style="background:${s<=r.benefit?r.color:'#0d1e36'}"></div>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="card-practices">
+        ${r.practices.map(p=>`
+          <div class="practice-item">
+            <div class="practice-dot" style="background:${r.color}"></div>
+            <div class="practice-text">${p}</div>
+          </div>
+        `).join('')}
+        <div class="card-when">
+          <span style="color:${r.color};font-weight:700;">USE WHEN:</span>
+          ${r.when}
+        </div>
+      </div>
+    </div>
+  `;
+
+  card.addEventListener('click', ()=>{
+    if(activeCard === r.num){
+      card.classList.remove('active');
+      card.style.background='';
+      card.style.borderColor='';
+      card.style.boxShadow='';
+      activeCard=null;
+      detailPanel.classList.remove('visible');
+    } else {
+      // Reset all
+      RS.forEach(x=>{
+        const c=document.getElementById(`card-${x.num}`);
+        if(c){c.classList.remove('active');c.style.background='';c.style.borderColor='';c.style.boxShadow='';}
+      });
+      card.classList.add('active');
+      card.style.background=`rgba(${hexToRgb(r.color)},0.08)`;
+      card.style.borderColor=r.color;
+      card.style.boxShadow=`0 0 30px rgba(${hexToRgb(r.color)},0.25), inset 0 0 30px rgba(${hexToRgb(r.color)},0.05)`;
+      activeCard=r.num;
+      renderDetailPanel(r);
+    }
+  });
+
+  cardsGrid.appendChild(card);
+});
+
+function renderDetailPanel(r){
+  detailPanel.className='detail-panel visible';
+  detailPanel.style.borderColor=r.color+'44';
+  detailPanel.style.boxShadow=`0 0 40px rgba(${hexToRgb(r.color)},0.1)`;
+  detailPanel.innerHTML=`
+    <div class="detail-header">
+      <div class="detail-icon-big" style="background:rgba(${hexToRgb(r.color)},0.12);border-color:${r.color}44;color:${r.color};">
+        ${r.icon}
+      </div>
+      <div class="detail-title-block">
+        <div class="detail-num" style="color:${r.color};">${r.num} / 7 — ${r.alias.toUpperCase()}</div>
+        <h2>${r.name}</h2>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+          <span class="badge" style="color:${r.color};border-color:${r.color}33;background:${r.color}0f;">SPEED: ${r.speed}</span>
+          <span class="badge" style="color:#00FF9F;border-color:#00FF9F33;background:#00FF9F0f;">CLOUD-NATIVE: ${r.cloudNative}</span>
+        </div>
+      </div>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-section">
+        <h3>OVERVIEW</h3>
+        <p class="detail-desc">${r.longDesc}</p>
+      </div>
+      <div class="detail-section">
+        <h3>BEST PRACTICES</h3>
+        ${r.practices.map((p,i)=>`
+          <div class="hp-item">
+            <div class="hp-num" style="background:${r.color}1a;color:${r.color};">${i+1}</div>
+            <div class="hp-text">${p}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="detail-section">
+        <h3>KEY TOOLS & SERVICES</h3>
+        <div style="margin-bottom:16px;">
+          ${r.tools.map(t=>`
+            <span class="tool-chip" style="color:${r.color};border-color:${r.color}33;background:${r.color}0f;">
+              <span class="tool-chip-dot" style="background:${r.color};"></span>${t}
+            </span>
+          `).join('')}
+        </div>
+        <h3>WHEN TO USE</h3>
+        <div style="padding:12px;background:rgba(${hexToRgb(r.color)},0.06);border-radius:4px;border:1px solid ${r.color}22;">
+          <p style="font-size:12px;color:#aaa;line-height:1.7;">${r.when}</p>
+        </div>
+      </div>
+    </div>
+  `;
+  detailPanel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ═══════════════════════════════════════════════
+// RENDER MATRIX
+// ═══════════════════════════════════════════════
+const matrixTable = document.getElementById('matrixTable');
+matrixTable.innerHTML=`
+  <thead><tr>
+    <th>STRATEGY</th><th>ALIAS</th><th>EFFORT</th><th>BENEFIT</th>
+    <th>SPEED</th><th>CLOUD-NATIVE</th><th>USE WHEN</th>
+  </tr></thead>
+  <tbody>
+    ${RS.map(r=>`
+      <tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;border-radius:6px;background:${r.color}15;border:1px solid ${r.color}33;display:flex;align-items:center;justify-content:center;color:${r.color};flex-shrink:0;">${r.icon}</div>
+            <div>
+              <div class="matrix-name" style="color:${r.color};">${r.name}</div>
+              <div style="font-family:'Share Tech Mono',monospace;font-size:8px;color:#334;letter-spacing:1px;">${r.num}</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#667;">${r.alias}</td>
+        <td><div class="seg-row">${[1,2,3,4,5].map(s=>`<div class="seg-sm" style="background:${s<=r.effort?r.color:'#0d1e36'}"></div>`).join('')}</div></td>
+        <td><div class="seg-row">${[1,2,3,4,5].map(s=>`<div class="seg-sm" style="background:${s<=r.benefit?'#00FF9F':'#0d1e36'}"></div>`).join('')}</div></td>
+        <td><span class="badge" style="color:${r.speed==='Fast'?'#00FF9F':r.speed==='Medium'?'#FFD700':'#FF6B6B'};border-color:${r.speed==='Fast'?'#00FF9F33':r.speed==='Medium'?'#FFD70033':'#FF6B6B33'};">${r.speed}</span></td>
+        <td><span class="badge" style="color:${r.cloudNative==='Highest'?'#00FF9F':r.cloudNative==='High'?'#00D4FF':r.cloudNative==='Medium'?'#FFD700':r.cloudNative==='Low'?'#FF8C42':'#666'};border-color:currentColor;opacity:0.8;">${r.cloudNative}</span></td>
+        <td style="font-size:11px;color:#778;max-width:200px;">${r.when}</td>
+      </tr>
+    `).join('')}
+  </tbody>
+`;
+
+// ═══════════════════════════════════════════════
+// RENDER DECISION FLOW
+// ═══════════════════════════════════════════════
+const flowSteps = document.getElementById('flowSteps');
+DECISION_FLOW.forEach((step,i)=>{
+  const node = document.createElement('div');
+  node.className='flow-step';
+  node.innerHTML=`
+    <div class="flow-step-q">${step.q}</div>
+    ${step.no?`<div class="flow-step-no">${step.no}</div>`:''}
+    ${step.yes?`<div class="flow-step-yes">${step.yes}</div>`:''}
+  `;
+  flowSteps.appendChild(node);
+  if(i < DECISION_FLOW.length-1){
+    const arrow=document.createElement('div');
+    arrow.className='flow-conn';
+    arrow.innerHTML=`<svg width="28" height="12" viewBox="0 0 28 12"><line x1="0" y1="6" x2="18" y2="6" stroke="#1a3050" stroke-width="1.5"/><polygon points="18,2 28,6 18,10" fill="#1a3050"/></svg>`;
+    flowSteps.appendChild(arrow);
+  }
+});
+
+// ═══════════════════════════════════════════════
+// RENDER HYPERSCALERS
+// ═══════════════════════════════════════════════
+const hsGrid = document.getElementById('hsGrid');
+HYPERSCALERS.forEach(h=>{
+  const card=document.createElement('div');
+  card.className=`hs-card ${h.cls}`;
+  card.innerHTML=`
+    <div class="hs-name" style="color:${h.color};">
+      ${h.logo} ${h.name}
+    </div>
+    ${h.tools.map(t=>`
+      <div class="hs-tool" style="background:${h.color}0a;border-color:${h.color}22;color:#ccc;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="${h.color}" stroke-width="1.8" class="hs-tool-icon">
+          <circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+        </svg>
+        <div>
+          <div style="font-weight:600;font-size:12px;">${t.name}</div>
+          <div style="font-size:10px;color:#556;font-family:'Share Tech Mono',monospace;">${t.desc}</div>
+        </div>
+      </div>
+    `).join('')}
+  `;
+  hsGrid.appendChild(card);
+});
+
+// ═══════════════════════════════════════════════
+// RENDER BEST PRACTICES
+// ═══════════════════════════════════════════════
+const bpGrid = document.getElementById('bpGrid');
+BEST_PRACTICES.forEach((bp,i)=>{
+  const card=document.createElement('div');
+  card.className='bp-card';
+  card.style=`animation:cardIn 0.5s ${i*0.07}s ease both;`;
+  card.innerHTML=`
+    <div class="bp-icon">${bp.icon}</div>
+    <div class="bp-title">${bp.title}</div>
+    <div class="bp-desc">${bp.desc}</div>
+  `;
+  bpGrid.appendChild(card);
+});
+
+// ═══════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════
+function switchTab(id, btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+}
+
+// ═══════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════
+function hexToRgb(hex){
+  const r=parseInt(hex.slice(1,3),16);
+  const g=parseInt(hex.slice(3,5),16);
+  const b=parseInt(hex.slice(5,7),16);
+  return `${r},${g},${b}`;
+}
+</script>
+</body>
+</html>
